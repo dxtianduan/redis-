@@ -2,6 +2,7 @@ package com.hmdp.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
@@ -39,5 +40,41 @@ session.setAttribute("code",code);
 log.debug("发送短信成功：{}",code);
         //返回OK
         return Result.ok();
+    }
+
+
+    public Result login(LoginFormDTO loginForm, HttpSession session) {
+        //校验手机号和验证码,分别校验
+        //1手机号
+        String phone = loginForm.getPhone();
+        if (RegexUtils.isPhoneInvalid(phone)) {
+            return Result.fail("手机号格式错误");
+        }
+        //2验证码
+        Object code = session.getAttribute("code");
+        String code1 = loginForm.getCode();
+        if (code==null||!code.toString().equals(code1)) {
+            //不一致
+            return Result.fail("验证码错误");
+        }
+        //一致，，判断查询用户
+        User user = query().eq("phone", phone).one();
+        //判断用户存在
+        if (user==null) {
+            user=creatUserWithPhone(phone);
+        }
+        //保存到session中
+        session.setAttribute("user",user);
+        return Result.ok();
+    }
+
+    private User creatUserWithPhone(String phone) {
+        //创建用户
+        User user = new User();
+user.setPhone(phone);
+user.setNickName("user_"+RandomUtil.randomString(10));
+//保存用户
+        save(user);
+        return user;
     }
 }
