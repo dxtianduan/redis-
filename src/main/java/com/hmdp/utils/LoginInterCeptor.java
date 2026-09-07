@@ -23,7 +23,7 @@ public class LoginInterCeptor implements HandlerInterceptor {
            return false;
        }
         //存在，保护用户ID到threadlocal
-UserHolder.saveUser((User) user);
+UserHolder.saveUser((UserDTO) user);
         //放行
         return true;
     }
