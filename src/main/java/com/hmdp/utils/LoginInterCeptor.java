@@ -1,57 +1,39 @@
 package com.hmdp.utils;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
+import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.xml.ws.handler.Handler;
-
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+@Slf4j
 public class LoginInterCeptor implements HandlerInterceptor {
+    private StringRedisTemplate stringRedisTemplate;
+
+    public LoginInterCeptor(StringRedisTemplate stringRedisTemplate) {
+this.stringRedisTemplate=stringRedisTemplate;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        //获取session
-        //HttpSession session = request.getSession();
-
-        //
-         //
-         //
-         //
-        //获取请求头中的token
-
-        //判断token是否为空
-
-        //获取session中的用户
-        //Object user = session.getAttribute("user");
-
-        //基于token获取Redis中的用户
-
-
-
-        //判断用户是否存在
-        //不存在，拦截
-//        if (user==null){
-//           response.setStatus(401);
-//         return false;
-//      }
-
-
-        //不存在，拦截
-
-
-        //将查询到的hash数据转化为UserDtO
-
-        //保存用户ID到threadlocal
-UserHolder.saveUser((UserDTO) user);
-
-
-//保存用户ID到threadlocal
-
-
-        //解析token有效期
-
+       //判断是否需要拦截
+        if(UserHolder.getUser()==null)
+        {
+            //没有就拦截
+response.setStatus(401);
+            //拦截
+return false;
+        }
         //放行
         return true;
     }

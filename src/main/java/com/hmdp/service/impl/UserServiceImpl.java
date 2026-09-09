@@ -1,6 +1,7 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -90,10 +92,13 @@ log.debug("发送短信成功：{}",code);
 
         //2.将user对象作为hash存储
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO);
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO,new HashMap<>(), CopyOptions.create().setIgnoreNullValue(true).setFieldValueEditor((fieldName,fieldValve)->fieldValve.toString()));
         //存储
-stringRedisTemplate.opsForHash().putAll("login:token"+token,userMap);
-        return Result.ok();
+        String tokenKey ="login:token:"+token;
+stringRedisTemplate.opsForHash().putAll(tokenKey,userMap);
+//设置token有效期
+stringRedisTemplate.expire(tokenKey,30,TimeUnit.MINUTES);
+return Result.ok(token);
     }
 
     private User creatUserWithPhone(String phone) {
