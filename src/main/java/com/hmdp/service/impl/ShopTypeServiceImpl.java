@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -29,19 +31,41 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
 private StringRedisTemplate stringRedisTemplate;
     public Object queryTypeListByString() {
         final String cache_key="cache:type:";
-        String string = stringRedisTemplate.opsForValue().get(cache_key);
-        if (StrUtil.isNotBlank(string)) {
-            List<ShopType> list = JSONUtil.toList(string, ShopType.class);
-            return Result.ok(list);
+        //string 类型
+        //String string = stringRedisTemplate.opsForValue().get(cache_key);
+       //hash类型
+        Map<Object, Object> hash = stringRedisTemplate.opsForHash().entries(cache_key);
+        //list类型
+
+        //string
+//        if (StrUtil.isNotBlank(string)) {
+//            List<ShopType> list = JSONUtil.toList(string, ShopType.class);
+//            return Result.ok(list);
+//        }
+        //hash
+        if (!hash.isEmpty()) {
+          return   hash.values().stream()
+                    .map(val -> JSONUtil.toBean(val.toString(), ShopType.class))
+                    .collect(Collectors.toList());
         }
+       // List<ShopType> typeList = this.query().orderByAsc("sort").list();
         List<ShopType> typeList = this.query().orderByAsc("sort").list();
         if (typeList==null||typeList.isEmpty()) {
             return typeList;
         }
-        stringRedisTemplate.opsForValue().set(
-                cache_key
-                ,JSONUtil.toJsonStr(typeList),30, TimeUnit.MINUTES
-        );
+        //string
+//        stringRedisTemplate.opsForValue().set(
+//                cache_key
+//                ,JSONUtil.toJsonStr(typeList),30, TimeUnit.MINUTES
+//        );
+        //hash
+        Map<String, String> hashData = typeList.stream()
+                .collect(Collectors.toMap(
+                        type -> type.getId().toString(),
+                        JSONUtil::toJsonStr
+                ));
+        stringRedisTemplate.opsForHash().putAll(cache_key, hashData);
+        stringRedisTemplate.expire(cache_key, 30, TimeUnit.MINUTES);
         return typeList;
     }
 }
