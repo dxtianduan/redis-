@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -43,8 +44,21 @@ private StringRedisTemplate stringRedisTemplate;
             return Result.fail("用户不存在");
         }
         //存在，写入Redis
-   stringRedisTemplate.opsForValue().set("cache:shop:" + id,JSONUtil.toJsonStr(shop));
+   stringRedisTemplate.opsForValue().set("cache:shop:" + id,JSONUtil.toJsonStr(shop),30, TimeUnit.MINUTES);
         //返回
         return Result.ok(shop);
+    }
+
+    @Override
+    public Result update(Shop shop) {
+        Long id = shop.getId();
+        if (id == null) {
+            return Result.fail("店铺ID为空");
+        }
+updateById(shop);
+        stringRedisTemplate.delete("cache:shop:" + id);
+
+        return Result
+                .ok();
     }
 }
