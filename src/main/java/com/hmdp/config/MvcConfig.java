@@ -5,6 +5,7 @@ import com.hmdp.utils.RefreshTokenInterCeptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.annotation.Resource;
@@ -23,10 +24,16 @@ registry.addInterceptor(new LoginInterCeptor(stringRedisTemplate))
                 "/upload/**",
                 "/blog/hot",
                 "/user/code",
-                "/user/login"
-
+                "/user/login",
+                "/doc.html",
+                "/webjars/**",
+                "/swagger-resources/**",
+                "/v2/api-docs",
+                "/favicon.ico"
         ).order(1);
 registry.addInterceptor(new RefreshTokenInterCeptor(stringRedisTemplate)).addPathPatterns("/**").order(0);
         WebMvcConfigurer.super.addInterceptors(registry);
     }
-}
+
+    }
+

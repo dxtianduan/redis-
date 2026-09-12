@@ -19,7 +19,7 @@ public class Knife4jConfig {
                 .apiInfo(apiInfo())
                 .select()
                 // 这里改成你自己的Controller包路径
-                .apis(RequestHandlerSelectors.basePackage("E:\\heimadianping\\hm-dianping(1)\\hm-dianping\\src\\main\\java\\com\\hmdp\\controller"))
+                .apis(RequestHandlerSelectors.basePackage("com.hmdp.controller"))
                 .paths(PathSelectors.any())
                 .build();
     }

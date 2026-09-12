@@ -36,11 +36,14 @@ private StringRedisTemplate stringRedisTemplate;
             Shop shop = JSONUtil.toBean(string, Shop.class);
             return Result.ok(shop);
         }
-
+        if (string!=null) {
+            return Result.fail("店铺信息不存在");
+        }
         //不存在，根据ID查询数据库
         Shop shop = getById(id);
         //不存在，返回错误
         if (shop==null) {
+            stringRedisTemplate.opsForValue().set("cache:shop:" + id,null,3,TimeUnit.MINUTES);
             return Result.fail("用户不存在");
         }
         //存在，写入Redis
