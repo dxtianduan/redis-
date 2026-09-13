@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.SeckillVoucher;
 import com.hmdp.entity.VoucherOrder;
@@ -10,6 +11,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisData;
 import com.hmdp.utils.ReidsWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +28,11 @@ import java.time.LocalDateTime;
  */
 @Service
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
-@Resource
-private ISeckillVoucherService iSeckillVoucherService;
-  @Resource
-  private ReidsWorker reidsWorker;
+    @Resource
+    private ISeckillVoucherService iSeckillVoucherService;
+    @Resource
+    private ReidsWorker reidsWorker;
+
     @Override
     @Transactional
     public Result killVoucher(Long voucherId) {
@@ -50,40 +53,61 @@ private ISeckillVoucherService iSeckillVoucherService;
             return Result.fail("秒杀已结束");
         }
         //判断库存
-        if (voucher.getStock()<1){
-            return Result.fail("库存不足" );
+        if (voucher.getStock() < 1) {
+            return Result.fail("库存不足");
         }
         //扣减库存
- boolean success= iSeckillVoucherService.update()
-        .setSql("stock=stock-1")
-        .eq("voucher_id",voucherId)
-         .gt("stoke",voucher.getStock())
-         .update();
+        boolean success = iSeckillVoucherService.update()
+                .setSql("stock=stock-1")
+                .eq("voucher_id", voucherId)
+                .gt("stoke", voucher.getStock())
+                .update();
 
-if (!success){
-    //扣减失败
-    return Result.fail("库存不足" );
-}
-        //创建订单
-        VoucherOrder voucherOrder = new VoucherOrder();
-//订单ID
-        long order = reidsWorker.nextId("order");
-        voucherOrder.setId(order);
-        //用户ID
-        //【修复4】判空：正常情况下 LoginInterCeptor 已经拦掉了未登录请求，
-        // 但 mvcConfig 里 /voucher-order/** 不在放行名单，若将来有人改了白名单，
-        // 这里会直接 NPE。显式判一下，报错信息对初学者更友好。
-        com.hmdp.dto.UserDTO currentUser = UserHolder.getUser();
-        if (currentUser == null) {
-            return Result.fail("未登录，请先登录后再抢购");
+        if (!success) {
+            //扣减失败
+            return Result.fail("库存不足");
         }
-        Long userid = currentUser.getId();
-        voucherOrder.setUserId(userid);
-        //代金券ID
-voucherOrder.setVoucherId(voucherId);
-
-save(voucherOrder);
-        //返回订单id
-        return Result.ok(order);
+        Long id = UserHolder.getUser().getId();
+        synchronized (id.toString().intern()) {
+            //获取代理对象(配置类+暴露对象（启动类就是根主配置类）)
+            IVoucherOrderService p = (IVoucherOrderService)AopContext.currentProxy();
+            return p.createVoucherOrder(voucherId);
+        }
     }
-}
+
+    @Transactional
+    public Result createVoucherOrder(Long voucherId) {
+        //一人一单
+        Long id = UserHolder.getUser().getId();
+
+            //查询订单
+            int count = query().eq("user_id", id).eq("voucher_id", voucherId).count();
+            //判断是否存在
+            if (count > 0) {
+                //用户购买过
+                return Result.fail("用户购买过,一人只能购买一单");
+            }
+
+            //创建订单
+            VoucherOrder voucherOrder = new VoucherOrder();
+            //订单ID
+            long order = reidsWorker.nextId("order");
+            voucherOrder.setId(order);
+            //用户ID
+            //【修复4】判空：正常情况下 LoginInterCeptor 已经拦掉了未登录请求，
+            // 但 mvcConfig 里 /voucher-order/** 不在放行名单，若将来有人改了白名单，
+            // 这里会直接 NPE。显式判一下，报错信息对初学者更友好。
+            com.hmdp.dto.UserDTO currentUser = UserHolder.getUser();
+            if (currentUser == null) {
+                return Result.fail("未登录，请先登录后再抢购");
+            }
+            Long userid = currentUser.getId();
+            voucherOrder.setUserId(userid);
+            //代金券ID
+            voucherOrder.setVoucherId(voucherId);
+
+            save(voucherOrder);
+            //返回订单id
+            return Result.ok(order);
+        }
+    }
