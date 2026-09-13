@@ -56,7 +56,9 @@ private ISeckillVoucherService iSeckillVoucherService;
         //扣减库存
  boolean success= iSeckillVoucherService.update()
         .setSql("stock=stock-1")
-        .eq("voucher_id",voucherId).update();
+        .eq("voucher_id",voucherId)
+         .gt("stoke",voucher.getStock())
+         .update();
 
 if (!success){
     //扣减失败
