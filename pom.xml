@@ -61,6 +61,16 @@
             <artifactId>hutool-all</artifactId>
             <version>5.7.17</version>
         </dependency>
+
+        <!--Knife4j 接口文档（3.0.2 适配 Spring Boot 2.3.x，勿升 4.x）
+            依赖 springfox-boot-starter，提供 Swagger2ControllerWebMvc 等自动配置，
+            否则 /v2/api-docs 会被当成静态资源、返回 404。
+            另有 OAS3 自动配置的干扰，已由 Knife4jConfig 的 @EnableSwagger2WebMvc 明确指定走 Swagger2。-->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-spring-boot-starter</artifactId>
+            <version>3.0.2</version>
+        </dependency>
     </dependencies>
 
     <build>

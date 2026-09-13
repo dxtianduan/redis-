@@ -19,6 +19,11 @@ spring:
         time-between-eviction-runs: 10s
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
+    time-zone: GMT+8                      # 时间用东八区，别用 UTC，否则差 8 小时
+  mvc:
+    format:
+      date-time: yyyy-MM-dd HH:mm:ss      # 接口接收的日期时间格式，例 2026-01-01 12:00:00
+      date: yyyy-MM-dd                    # 只填日期时的格式，例 2000-01-01
 mybatis-plus:
   type-aliases-package: com.redis.entity # 别名扫描包
 logging:

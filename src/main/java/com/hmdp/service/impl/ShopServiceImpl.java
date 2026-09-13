@@ -47,7 +47,7 @@ private CacheCllent cacheCllent;
 
         //缓存击穿
        // Shop shop1 = QuerWithMutex(id);
-        Shop shop1=cacheCllent.QuerWithLogicalExpire("cache:shop:",id,Shop.class,id2->getById(id),30L,TimeUnit.MINUTES);
+       // Shop shop1=cacheCllent.QuerWithLogicalExpire("cache:shop:",id,Shop.class,id2->getById(id),30L,TimeUnit.MINUTES);
 //逻辑过期
       //  Shop shop2 = QuerWithLogicalExpire(id);
         return Result.ok(shop);

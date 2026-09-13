@@ -11,7 +11,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 @Component
-public class ReidsWorker {
+public class ReidsWorker{
     private static final long beginTime=1640995200L;
 
     private StringRedisTemplate stringRedisTemplate;

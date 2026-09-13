@@ -1,13 +1,14 @@
 package com.hmdp.controller;
 
 
+import io.swagger.annotations.Api;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * <p>
- *  前端控制器
+ * 关注相关接口
  * </p>
  *
  * @author 虎哥
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/follow")
+@Api(tags = "09-关注模块")
 public class FollowController {
 
 }

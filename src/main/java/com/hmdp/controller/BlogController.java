@@ -10,6 +10,9 @@ import com.hmdp.service.IBlogService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -17,7 +20,7 @@ import java.util.List;
 
 /**
  * <p>
- * 前端控制器
+ * 探店笔记相关接口
  * </p>
  *
  * @author 虎哥
@@ -25,6 +28,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/blog")
+@Api(tags = "06-探店笔记模块")
 public class BlogController {
 
     @Resource
@@ -33,46 +37,48 @@ public class BlogController {
     private IUserService userService;
 
     @PostMapping
-    public Result saveBlog(@RequestBody Blog blog) {
-        // 获取登录用户
+    @ApiOperation(value = "发布探店笔记", notes = "需要登录。userId 不用传，后端从登录态里取；图片地址请先用『上传图片』接口上传拿到文件名，再用英文逗号拼起来。返回笔记id。")
+    public Result saveBlog(
+            @ApiParam(value = "笔记内容：标题、图片、文字描述", required = true)
+            @RequestBody Blog blog) {
         UserDTO user = UserHolder.getUser();
         blog.setUserId(user.getId());
-        // 保存探店博文
         blogService.save(blog);
-        // 返回id
         return Result.ok(blog.getId());
     }
 
     @PutMapping("/like/{id}")
-    public Result likeBlog(@PathVariable("id") Long id) {
-        // 修改点赞数量
+    @ApiOperation(value = "给笔记点赞", notes = "需要登录。注意：课程此刻只做了『点赞数+1』，还没实现『同一人只能点一次』和『取消点赞』。")
+    public Result likeBlog(
+            @ApiParam(value = "笔记id", required = true, example = "1")
+            @PathVariable("id") Long id) {
         blogService.update()
                 .setSql("liked = liked + 1").eq("id", id).update();
         return Result.ok();
     }
 
     @GetMapping("/of/me")
-    public Result queryMyBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
-        // 获取登录用户
+    @ApiOperation(value = "查询我的笔记", notes = "需要登录。传页码从1开始，每页10条。")
+    public Result queryMyBlog(
+            @ApiParam(value = "页码，从1开始", example = "1")
+            @RequestParam(value = "current", defaultValue = "1") Integer current) {
         UserDTO user = UserHolder.getUser();
-        // 根据用户查询
         Page<Blog> page = blogService.query()
                 .eq("user_id", user.getId()).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        // 获取当前页数据
         List<Blog> records = page.getRecords();
         return Result.ok(records);
     }
 
     @GetMapping("/hot")
-    public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
-        // 根据用户查询
+    @ApiOperation(value = "查询热门笔记", notes = "不用登录。按点赞数从高到低排，每页10条，返回时会带上发布者的昵称和头像。")
+    public Result queryHotBlog(
+            @ApiParam(value = "页码，从1开始", example = "1")
+            @RequestParam(value = "current", defaultValue = "1") Integer current) {
         Page<Blog> page = blogService.query()
                 .orderByDesc("liked")
                 .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        // 获取当前页数据
         List<Blog> records = page.getRecords();
-        // 查询用户
-        records.forEach(blog ->{
+        records.forEach(blog -> {
             Long userId = blog.getUserId();
             User user = userService.getById(userId);
             blog.setName(user.getNickName());
