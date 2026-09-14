@@ -51,9 +51,14 @@ private StringRedisTemplate stringRedisTemplate;
         //验证码保存在session
 //session.setAttribute("phone",phone);
         //验证码保存在Redis当中
+        //★ 这里是"验证码存哪儿"的关键：key = login:code:手机号，value = 6位数字，TTL = LOGIN_CODE_TTL 分钟
+        //  过期后 key 会被 Redis 自动删除，再登录就会取不到值（那才是真正的"验证码错误"来源）
         stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY+phone,code,LOGIN_CODE_TTL, TimeUnit.MINUTES);
         //发送验证码给客户
-log.debug("发送短信成功：{}",code);
+        //★ 练习项目不会真发短信，验证码也不会在接口返回值里给前端，只打印在控制台。
+        //  用 info 而不是 debug：万一哪天日志级别调成 info，debug 就看不到了，找起来更费劲。
+        log.info("★ 短信验证码已生成 -> 验证码：{}（手机号：{}，{} 分钟内有效，Redis key：{}{}）",
+                code, phone, LOGIN_CODE_TTL, LOGIN_CODE_KEY, phone);
         //返回OK
         return Result.ok();
     }
@@ -73,9 +78,21 @@ log.debug("发送短信成功：{}",code);
         //Redis中获取验证码
         String code= stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
         String code1 = loginForm.getCode();
-        if (code==null||!code.equals(code1)) {
+        //★ 下面三个 if 是这次的重点：原来只有一句"验证码错误"，把三种完全不同的原因混在了一起：
+        //   ① 没调 /user/code      -> Redis 里没这个 key
+        //   ② 调了但超过 10 分钟   -> key 已过期被删
+        //   ③ 手机号写错/验证码敲错 -> key 有值但对不上
+        //  分开提示后，一看错误信息就知道该去查哪一步，不用再猜。
+        if (code == null) {
+            return Result.fail("验证码不存在或已过期（有效期 " + LOGIN_CODE_TTL
+                    + " 分钟）。请先调用『发送短信验证码』，并确认使用的手机号完全一致：" + phone);
+        }
+        if (code1 == null || code1.trim().isEmpty()) {
+            return Result.fail("请求体里没有验证码：body 要写成 {\"phone\":\"手机号\",\"code\":\"6位数字\"} 两个字段都传");
+        }
+        if (!code.equals(code1.trim())) {
             //不一致
-            return Result.fail("验证码错误");
+            return Result.fail("验证码错误：你传的是 " + code1 + "，Redis 里存的是另一个值（注意别抄错、别抄了上一次的）");
         }
         //一致，，判断查询用户
         User user = query().eq("phone", phone).one();

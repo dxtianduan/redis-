@@ -11,6 +11,7 @@ import com.hmdp.utils.UserHolder;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import springfox.documentation.annotations.ApiIgnore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,8 +44,13 @@ public class UserController {
     @PostMapping("code")
     @ApiOperation(value = "发送短信验证码", notes = "验证码不会返回给前端，而是打印在 IDEA 控制台（日志里的『发送短信成功』）。测试时去控制台抄，然后传给登录接口。")
     public Result sendCode(
-            @ApiParam(value = "手机号，11位", required = true, example = "13612345678")
-            @RequestParam("phone") String phone, HttpSession session) {
+            @ApiParam(value = "手机号，11位", required = true, example = "13456789011")
+            @RequestParam("phone") String phone,
+            // @ApiIgnore：HttpSession 是 Servlet 容器注入的对象，不是接口参数。
+            // 不加这个注解，Swagger 会把它当请求参数展开，文档上就会多出
+            // creationTime / id / lastAccessedTime / maxInactiveInterval / new / valueNames 这 6 个假参数，
+            // 看着像要你填，其实一个都不用填（填了也没用）。
+            @ApiIgnore HttpSession session) {
         return userService.sendCode(phone, session);
     }
 
@@ -54,10 +60,11 @@ public class UserController {
      * @param loginForm 登录参数，包含手机号、验证码；或者手机号、密码
      */
     @PostMapping("/login")
-    @ApiOperation(value = "登录", notes = "登录成功后返回 token，把它填到文档右上角的『全局参数』里，或作为请求头 authorization 传给其他接口。")
+    @ApiOperation(value = "登录", notes = "★ 必须先调『发送短信验证码』拿到验证码，验证码在 IDEA 控制台日志里（搜『发送短信成功』），有效期 2 分钟。登录成功后返回 token，把它填到文档的『全局参数』里（参数名 authorization，类型 header），其他接口就会自动带上。")
     public Result login(
             @ApiParam(value = "登录参数，手机号必填；验证码和密码二选一", required = true)
-            @RequestBody LoginFormDTO loginForm, HttpSession session) {
+            @RequestBody LoginFormDTO loginForm,
+            @ApiIgnore HttpSession session) {
         return userService.login(loginForm, session);
     }
 

@@ -25,7 +25,7 @@ spring:
       date-time: yyyy-MM-dd HH:mm:ss      # 接口接收的日期时间格式，例 2026-01-01 12:00:00
       date: yyyy-MM-dd                    # 只填日期时的格式，例 2000-01-01
 mybatis-plus:
-  type-aliases-package: com.redis.entity # 别名扫描包
+  type-aliases-package: com.hmdp.entity # 别名扫描包（本项目的实体都在 com.hmdp.entity 下，原来写成 com.redis.entity 是模板残留，会导致 XML 里写短别名 resultType="Voucher" 时报找不到类）
 logging:
   level:
     com.hmdp: debug
