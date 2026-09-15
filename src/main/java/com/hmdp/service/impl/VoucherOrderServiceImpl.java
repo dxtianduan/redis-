@@ -12,6 +12,8 @@ import com.hmdp.utils.RedisData;
 import com.hmdp.utils.ReidsWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -37,6 +40,18 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    /**
+     * 【本次修复】这里要注入的是 Bean 本身，不是创建 Bean 的那个配置类。
+     *
+     * Redissionclient 是 @Configuration 配置类（相当于"造锁的工厂"），
+     * 它里面 @Bean 方法 redissonClient() 返回的 RedissonClient 才是"产品"。
+     * 工厂上并没有 getLock() 方法，所以注入配置类之后 IDE 找不到 getLock —— 就是这个原因。
+     *
+     * 按"类型"注入最省心：Spring 会去容器里找类型是 RedissonClient 的 Bean。
+     * 变量名可以随便叫（这里叫 redissonClient，和 @Bean 方法同名只是巧合的好习惯）。
+     */
+    @Resource
+    private RedissonClient redissonClient;
     /**
      * 秒杀下单 —— 第一层：只做「安全检查」
      *
@@ -75,10 +90,33 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long id = currentUser.getId();
 
-        //创建锁对象
-        SimpleRedisLock Lock = new SimpleRedisLock("Order:" + id, stringRedisTemplate);
-        //获取锁
-        boolean tryLock = Lock.tryLock(1200);
+        // 【本次修复】原来的 new SimpleRedisLock + redissionclient. 是两套锁混在一起用，这里统一改用 Redisson。
+        //
+        // 对比一下两套写法的区别：
+        //   自己写的 SimpleRedisLock：tryLock / unlock 都要手写，还要自己保证"删锁前先判断是自己的锁"（unlock.lua 干的事）
+        //   Redisson 的 RLock：这三件事（加锁、设过期、安全解锁）都由框架保证，还自带可重入和看门狗续期
+        //
+        // 锁的 key：Redisson 会自动在前面拼上 "redisson:"，所以这里传 "lock:order:" + id，
+        // 落到 Redis 里就是 redisson:lock:order:{用户id}
+        RLock lock = redissonClient.getLock("lock:order:" + id);
+
+        // tryLock() 三个参数的含义（顺序别记错）：
+        //   第 1 个 waitTime：最多等多久去抢锁。到了还没抢到就返回 false，不无限等待。
+        //                    0 表示"不等待，抢不到立刻返回"。
+        //   第 2 个 leaseTime：锁的持有时间。业务跑完自动释放，防止服务宕机后锁永远不释放（死锁）。
+        //   第 3 个 unit：上面两个时间的时间单位。
+        // 返回值：true = 抢到锁了，false = 没抢到（说明同一个用户在重复下单）
+        //
+        // 【注意】这个三参数版本会抛 InterruptedException（受检异常），编译器强制你处理。
+        // 它是"线程在等待锁的时候被叫停了"的信号，这里选择恢复中断标记并当"没抢到锁"处理。
+        // ★ 千万不能空着 catch 什么都不做 —— 那会把中断信号吞掉，让上层线程池无法正常关闭。
+        boolean tryLock;
+        try {
+            tryLock = lock.tryLock(0, 1200, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();   // 恢复中断标记，让调用方知道"我被中断过"
+            return Result.fail("获取锁被中断，请重试");
+        }
         //判断是否获取成功
         if (!tryLock){
             //失败
@@ -98,7 +136,14 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         } catch (IllegalStateException e) {
             throw new RuntimeException(e);
         } finally {
-            Lock.unlock();
+            //解锁也换成 Redisson 的。
+            // isLocked() 和 isHeldByCurrentThread() 是两道保险：
+            // 万一 tryLock 没抢到锁，或者锁已经超时自动释放了，这里再去 unlock 会抛
+            // IllegalMonitorStateException（"没锁你解锁什么"），所以先判断再解。
+            // Redisson 的锁是可重入的，必须由"持有它的那个线程"来解，不能跨线程解。
+            if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
 
     }
