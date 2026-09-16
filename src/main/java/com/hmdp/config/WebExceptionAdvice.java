@@ -29,6 +29,26 @@ public class WebExceptionAdvice {
     @ExceptionHandler(RuntimeException.class)
     public Result handleRuntimeException(RuntimeException e) {
         log.error(e.toString(), e);
-        return Result.fail("服务器异常");
+
+        // ★【本次修复】把真实的异常摘要一并返回，而不是永远只说"服务器异常"。
+        //
+        // 为什么必须改？这个类原来对所有运行时异常一律返回"服务器异常"，
+        // 而前端 common.js 会把这个 errorMsg 原样弹出来。于是无论是
+        //     Redis 脚本报错（ERR value is not an integer...）、
+        //     SQL 列名写错（Unknown column 'stoke'）、
+        //     还是空指针，
+        // 用户看到的都是同一句"服务器异常" —— 报错信息彻底失去定位能力，
+        // 只能靠翻 IDEA 控制台，问题排查全靠猜。
+        //
+        // 带上 message 之后，前端弹出的就是真正的原因（例如上面那句 Redis 报错），
+        // 一眼就能判断该去查数据、还是查代码。
+        //
+        // ⚠️ 生产环境请改回只返回"服务器异常"：异常信息可能包含表名、字段名、
+        //    内部路径等实现细节，直接返回给外部是信息泄露。
+        String detail = e.getMessage();
+        if (detail == null || detail.trim().isEmpty()) {
+            return Result.fail("服务器异常（" + e.getClass().getSimpleName() + "，无详细信息，请看后端控制台）");
+        }
+        return Result.fail("服务器异常：" + detail);
     }
 }
