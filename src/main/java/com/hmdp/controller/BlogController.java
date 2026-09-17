@@ -47,10 +47,8 @@ public Result querBlogByUserId(@RequestParam(value = "current",defaultValue = "1
     public Result saveBlog(
             @ApiParam(value = "笔记内容：标题、图片、文字描述", required = true)
             @RequestBody Blog blog) {
-        UserDTO user = UserHolder.getUser();
-        blog.setUserId(user.getId());
-        blogService.save(blog);
-        return Result.ok(blog.getId());
+
+        return blogService.saveBlog(blog);
     }
 
     @PutMapping("/like/{id}")
