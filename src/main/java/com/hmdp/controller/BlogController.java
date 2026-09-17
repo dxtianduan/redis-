@@ -52,9 +52,8 @@ public class BlogController {
     public Result likeBlog(
             @ApiParam(value = "笔记id", required = true, example = "1")
             @PathVariable("id") Long id) {
-        blogService.update()
-                .setSql("liked = liked + 1").eq("id", id).update();
-        return Result.ok();
+
+        return blogService.likeBlog(id);
     }
 
     @GetMapping("/of/me")
@@ -74,16 +73,12 @@ public class BlogController {
     public Result queryHotBlog(
             @ApiParam(value = "页码，从1开始", example = "1")
             @RequestParam(value = "current", defaultValue = "1") Integer current) {
-        Page<Blog> page = blogService.query()
-                .orderByDesc("liked")
-                .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        List<Blog> records = page.getRecords();
-        records.forEach(blog -> {
-            Long userId = blog.getUserId();
-            User user = userService.getById(userId);
-            blog.setName(user.getNickName());
-            blog.setIcon(user.getIcon());
-        });
-        return Result.ok(records);
+
+
+        return blogService.queryHotBlog(current);}
+        @GetMapping("/{id}")
+                public Result queryBlogByid(@PathVariable("id") long id){
+            return blogService.queryBlogById(id);
+
     }
 }

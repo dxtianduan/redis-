@@ -5,7 +5,7 @@
 -- 1. 从参数里取出优惠券id 和 用户id
 local voucherId = ARGV[1]
 local userId = ARGV[2]
-
+local orderId=ARGV[3]
 -- 2. 拼出两个 key
 -- 2.1 库存key：值是"还剩几件"，用 incrby 加减
 local stockKey = 'seckill:stock:' .. voucherId
@@ -45,6 +45,7 @@ end
 redis.call('incrby', stockKey, -1)
 -- 6. 记录下单用户
 redis.call('sadd', orderKey, userId)
-
+ --发送消息到队列当中
+ redis.call('xadd','stream.orders','*','userId',userId,'voucherId',voucherId,'id',orderId)
 -- 7. 返回 0 = 有购买资格
 return 0

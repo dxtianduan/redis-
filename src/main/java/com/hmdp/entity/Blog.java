@@ -52,6 +52,7 @@ public class Blog implements Serializable {
     @TableField(exist = false)
     @ApiModelProperty(value = "发布者头像，返回时才有")
     private String icon;
+
     /**
      * 用户姓名
      */
