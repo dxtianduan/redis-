@@ -63,8 +63,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Long id1 = UserHolder.getUser().getId();
         //判断是否点赞
         String key="blog:like:"+blog.getId();
-        Boolean isMember=stringRedisTemplate.opsForSet().isMember(key,id1.toString());
-        blog.setIsLike(BooleanUtil.isTrue(isMember));
+        Double score = stringRedisTemplate.opsForZSet().score(key, id1.toString());
+        blog.setIsLike(score!=null);
     }
 
     @Override
@@ -73,9 +73,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Long id1 = UserHolder.getUser().getId();
         //判断是否点赞
 String key="blog:like:"+id;
-Boolean isMember=stringRedisTemplate.opsForSet().isMember(key,id1.toString());
+        Double score = stringRedisTemplate.opsForZSet().score(key, id1.toString());
         //若点赞，改数据库，存Redis，set集合
-if (BooleanUtil.isFalse(isMember)){
+if (score==null){
     boolean update = update().setSql("liked=liked+1").eq("id", id).update();
     if (update){
         stringRedisTemplate.opsForZSet().add(key,id1.toString(),System.currentTimeMillis());
@@ -84,7 +84,7 @@ if (BooleanUtil.isFalse(isMember)){
 {
     //若未点赞，改数据库，存Redis
     boolean update = update().setSql("liked=liked-1").eq("id", id).update();
-    stringRedisTemplate.opsForSet().remove(key,id1.toString());
+    stringRedisTemplate.opsForZSet().remove(key,id1.toString());
 }
         return Result.ok();
     }
