@@ -2,8 +2,10 @@ package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
@@ -12,11 +14,15 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
+import net.sf.jsqlparser.expression.LongValue;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -60,7 +66,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     private void isBlogLiked(Blog blog) {
         //获取当前用户
-        Long id1 = UserHolder.getUser().getId();
+        UserDTO user = UserHolder.getUser();
+        if (user==null){
+            //用户未登录，无需查询是否点赞
+            return ;
+        }
+        Long id1 = user.getId();
         //判断是否点赞
         String key="blog:like:"+blog.getId();
         Double score = stringRedisTemplate.opsForZSet().score(key, id1.toString());
@@ -87,6 +98,26 @@ if (score==null){
     stringRedisTemplate.opsForZSet().remove(key,id1.toString());
 }
         return Result.ok();
+    }
+
+    @Override
+    public Result queryBlogLikes(long id) {
+        String key="blog:like:"+id;
+        //查询top5范围点赞用户
+        Set<String> top5 = stringRedisTemplate.opsForZSet().range(key, 0, 4);
+        if (top5==null||top5.isEmpty()){
+return Result.ok(Collections.emptyList());
+        }
+        //解析出用户ID
+        List<Long> collect = top5.stream().map(Long::valueOf).collect(Collectors.toList());
+        String join = StrUtil.join(",", collect);
+        //查询用户
+        List<UserDTO> userDTOS = userService.query().in("id",collect).last("ORDER BY FIELD(id,"+join+")").list()
+                .stream()
+                .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
+                .collect(Collectors.toList());
+        //返回
+        return Result.ok(userDTOS);
     }
 
     private void extracted(Blog blog) {

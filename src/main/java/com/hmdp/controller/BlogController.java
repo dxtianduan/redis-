@@ -73,12 +73,15 @@ public class BlogController {
     public Result queryHotBlog(
             @ApiParam(value = "页码，从1开始", example = "1")
             @RequestParam(value = "current", defaultValue = "1") Integer current) {
-
-
         return blogService.queryHotBlog(current);}
+
+
         @GetMapping("/{id}")
                 public Result queryBlogByid(@PathVariable("id") long id){
             return blogService.queryBlogById(id);
-
     }
-}
+    @GetMapping("/likes/{id}")
+    public Result queryBlogLikes(@PathVariable("id") long id) {
+        return blogService.queryBlogLikes(id);
+    }
+    }
