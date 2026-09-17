@@ -1,6 +1,7 @@
 package com.hmdp.controller;
 
 
+import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
@@ -35,7 +36,12 @@ public class BlogController {
     private IBlogService blogService;
     @Resource
     private IUserService userService;
-
+@GetMapping("/of/user")
+public Result querBlogByUserId(@RequestParam(value = "current",defaultValue = "1")Integer current,@RequestParam("id")Long id){
+    Page<Blog> page = blogService.query().eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+    List<Blog> records = page.getRecords();
+    return Result.ok(records);
+}
     @PostMapping
     @ApiOperation(value = "发布探店笔记", notes = "需要登录。userId 不用传，后端从登录态里取；图片地址请先用『上传图片』接口上传拿到文件名，再用英文逗号拼起来。返回笔记id。")
     public Result saveBlog(
