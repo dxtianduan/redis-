@@ -40,7 +40,9 @@ public class UserController {
     @Resource
     private IUserInfoService userInfoService;
 //根据ID查询用户
-    @GetMapping("/id")
+    // 注意：路径里必须有 {id} 占位符，否则 /user/2 这类请求匹配不到本方法，
+    // 前端 other-info.html 拿到 404 就只能回落默认头像。
+    @GetMapping("/{id}")
     public Result queryUserById(@PathVariable("id")Long userId)
     {
         //查询详情\
