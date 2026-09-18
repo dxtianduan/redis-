@@ -16,11 +16,13 @@ public interface IBlogService extends IService<Blog> {
 
     Result queryHotBlog(Integer current);
 
-    Result queryBlogById(long id);
+    Result queryBlogById(Long id);
 
     Result likeBlog(Long id);
 
     Result queryBlogLikes(long id);
 
     Result saveBlog(Blog blog);
+
+    Result querBlogOfFollow(Long max, Integer offset);
 }

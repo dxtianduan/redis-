@@ -14,6 +14,7 @@ import com.hmdp.utils.UserHolder;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -88,4 +89,7 @@ public Result querBlogByUserId(@RequestParam(value = "current",defaultValue = "1
     public Result queryBlogLikes(@PathVariable("id") long id) {
         return blogService.queryBlogLikes(id);
     }
-    }
+
+    @GetMapping("/of/follow")
+    public Result querBLogOfFollow(@RequestParam("lastId")Long max,@RequestParam(value = "offset",defaultValue = "0")Integer offset) {
+return blogService.querBlogOfFollow(max,offset);}}

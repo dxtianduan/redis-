@@ -5,6 +5,7 @@ import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.ScrollResult;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.entity.Follow;
@@ -17,12 +18,15 @@ import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import net.sf.jsqlparser.expression.LongValue;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -56,7 +60,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
 
     @Override
-    public Result queryBlogById(long id) {
+    public Result queryBlogById(Long id) {
         Blog blog = getById(id);
         if (blog==null){
             return  Result.fail("笔记不存在");
@@ -142,6 +146,55 @@ return Result.ok(Collections.emptyList());
             stringRedisTemplate.opsForZSet().add(key,blog.getId().toString(),System.currentTimeMillis());
         }
     return Result.ok(blog.getId());
+    }
+
+    @Override
+    public Result querBlogOfFollow(Long max, Integer offset) {
+        //获取当前用户
+        Long id = UserHolder.getUser().getId();
+        //查询收件箱
+        String key="fees:"+id;
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate
+                .opsForZSet()
+                .reverseRangeByScoreWithScores(key, 0, max, offset, 2);
+        //非空判断
+        if (typedTuples==null||typedTuples.isEmpty())
+        {
+            return Result.ok();
+        }
+        //解析数据：blogid,mintime,offset
+        List<Long> objects = new ArrayList<>(typedTuples.size());
+        long mintime=0;
+        int os=1;
+        for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+            //获取ID
+            String value = typedTuple.getValue();
+            objects.add(Long.valueOf(value));
+            //获取分数
+            long l = typedTuple.getScore().longValue();
+            if (l==mintime){
+                os++;
+            }else {
+                mintime= l;
+                os=1;
+            }
+
+
+        }
+        //根据ID查询blog
+        String join = StrUtil.join(",", objects);
+        List<Blog> blogs1 = query().in("id", objects).last("ORDER BY FIELD(id," +join + ")").list();
+        for (Blog blog : blogs1) {
+            extracted(blog);
+            //查询是否被点赞
+            isBlogLiked(blog);
+        }
+        //封装，返回
+        ScrollResult scrollResult = new ScrollResult();
+        scrollResult.setList(blogs1);
+        scrollResult.setOffset(os);
+        scrollResult.setMinTime(mintime);
+        return Result.ok(scrollResult);
     }
 
     private void extracted(Blog blog) {
