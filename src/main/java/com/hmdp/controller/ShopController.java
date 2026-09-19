@@ -86,12 +86,13 @@ public class ShopController {
             @ApiParam(value = "商铺类型id", required = true, example = "1")
             @RequestParam("typeId") Integer typeId,
             @ApiParam(value = "页码，从1开始", example = "1")
-            @RequestParam(value = "current", defaultValue = "1") Integer current
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @ApiParam(value = "经度", example = "120.149993")
+            @RequestParam(value = "x", required = false) Double x,
+            @ApiParam(value = "纬度", example = "30.334229")
+            @RequestParam(value = "y", required = false) Double y
     ) {
-        Page<Shop> page = shopService.query()
-                .eq("type_id", typeId)
-                .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
-        return Result.ok(page.getRecords());
+        return shopService.queryShopByType(typeId, current, x, y);
     }
 
     /**
