@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
@@ -15,7 +16,9 @@ import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -23,6 +26,7 @@ import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -135,6 +139,47 @@ return Result.ok(token);
         //写入Redis
 stringRedisTemplate.opsForValue().setBit(key,dayOfMonth-1,true);
         return Result.ok();
+    }
+
+    @Override
+    public Result signCount() {
+        //获取当前用户
+        Long usereId = UserHolder.getUser().getId();
+        //获取日期
+        LocalDateTime now = LocalDateTime.now();
+        //拼接key
+        String keysuffix = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
+        String key="sign:"+usereId+keysuffix;
+        //获取今天是本月的第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //获取本月截止今天所有签到记录,返回十进制数字
+        BitFieldSubCommands result = BitFieldSubCommands.create().get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0);
+        List<Long> longs = stringRedisTemplate.opsForValue().bitField(
+                key, result
+        );
+        if (longs==null||longs.isEmpty()){
+            return Result.ok(0);
+        }
+        Long num=longs.get(0);
+        if (num==null||num==0){
+            return Result.ok(0);
+        }
+        //循环遍历
+        int count=0;
+while (true){
+    //让数字与一做与运算
+    if ((num&1)==0) {
+        //为0,说明未签到
+        break;
+    }else {
+        //为一，已签到，计数器加一
+count++;
+    }
+    //把数字右移一位，抛弃最后一个bit位
+    num>>>=1;
+}
+
+        return Result.ok(count);
     }
 
     private User creatUserWithPhone(String phone) {
