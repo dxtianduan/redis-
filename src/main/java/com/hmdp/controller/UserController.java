@@ -121,4 +121,8 @@ public class UserController {
         info.setUpdateTime(null);
         return Result.ok(info);
     }
+    @PostMapping("/sign")
+    public Result sign(){
+        return userService.sign();
+    }
 }
